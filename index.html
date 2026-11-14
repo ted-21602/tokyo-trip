@@ -1165,12 +1165,15 @@ async function getJSON(url){
 async function fetchFx(){
   fxBusy = true; paintLedger();
   try {
-    /* 兩個來源同時抓，先回來的有效數字就用，最多等 10 秒 */
-    const ok = p => p.then(x => { if (!(x >= 0.05 && x <= 1)) throw new Error('bad rate'); return x; });  /* ¥1 約 NT$0.2，離譜的數字不用 */
-    const v = await Promise.any([
-      ok(getJSON('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json').then(j => j.jpy.twd)),
-      ok(getJSON('https://open.er-api.com/v6/latest/JPY').then(j => j.rates.TWD))
+    /* 兩個來源同時抓（最多等 10 秒），用資料日期比較新的那個；兩個更新時間不同，先回來的不一定是最新的 */
+    const ok = p => p.then(x => { if (!(x.v >= 0.05 && x.v <= 1)) throw new Error('bad rate'); return x; });  /* ¥1 約 NT$0.2，離譜的數字不用 */
+    const rs = await Promise.allSettled([
+      ok(getJSON('https://open.er-api.com/v6/latest/JPY').then(j => ({v:j.rates.TWD, at:j.time_last_update_unix * 1000}))),
+      ok(getJSON('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json').then(j => ({v:j.jpy.twd, at:Date.parse(j.date + 'T00:00:00Z')})))
     ]);
+    const got = rs.filter(r => r.status === 'fulfilled').map(r => r.value).sort((a, b) => b.at - a.at);
+    if (!got.length) throw new Error('no rate');
+    const v = got[0].v;
     if (!(v > 0)) throw new Error('no rate');
     const k = todayKey(); fx.rates[k] = v; fx.src[k] = '自動'; fx.day = k; fx.at = Date.now(); fxErr = false; fxMsg = '';
     store(FXKEY, fx);
