@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+node_modules/
+.claude/
+_archive/
+_publish/*.html
+_publish/
+測試報告-*.md
+功能調整紀錄.md
