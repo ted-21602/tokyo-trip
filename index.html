@@ -1228,8 +1228,11 @@ async function jma(){
     const sta = s[2].areas.find(a => a.area.name === m.st);
     /* 短期預報有這個測站的氣溫時，整天改用這個測站（缺的那邊留空，之後用其他來源補），不和一週預報的甲府混在一起 */
     if (sta) { const st = {};
+      /* 上午 11 點後發布的資料，今天是「09 時最高溫」排在前、後面的「00 時」只是重複最高溫，不能當成最低溫 */
       s[2].timeDefines.forEach((t, i) => { const v = num(sta.temps[i]); if (v == null) return;
-        const k = t.slice(0, 10); st[k] = st[k] || {}; st[k][t.slice(11, 13) === '00' ? 'lo' : 'hi'] = v; });
+        const k = t.slice(0, 10), isLo = t.slice(11, 13) === '00'; st[k] = st[k] || {};
+        if (isLo && st[k].hi != null) return;
+        st[k][isLo ? 'lo' : 'hi'] = v; });
       Object.entries(st).forEach(([k, o]) => put(m.locs, k, {hi:o.hi ?? null, lo:o.lo ?? null, tst:m.st})); }
   }));
   if (rs.every(x => x.status === 'rejected')) throw new Error('jma');
