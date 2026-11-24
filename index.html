@@ -1008,7 +1008,7 @@ const toMin = t => { const [h,m] = t.split(':'); return h*60 + +m; };
 function renderDays(){
   const days = visibleDays();
   if (!days.find(d => d.id === curDay)) {
-    const now = new Date(), id = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+    const now = jt(), id = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
     curDay = (now.getFullYear()===2026 && days.find(d => d.id===id)) ? id : '1204';
   }
   $('#day-list').innerHTML = days.map((d,i) =>
@@ -1063,7 +1063,7 @@ function renderPlan(anim){
   if (state.bro) items = items.slice().sort((a,b) => toMin(a.t) - toMin(b.t));
   /* 旅行當天：時間還沒到的第一張卡標「下一個」，再之前已經結束的卡片變淡（正在進行的那張不變淡） */
   const isToday = '2026-' + d.d.replace('/', '-') === todayKey();
-  const nowMin = (t => t.getHours() * 60 + t.getMinutes())(new Date());
+  const nowMin = (t => t.getHours() * 60 + t.getMinutes())(jt());
   const nextIdx = isToday ? items.findIndex(it => toMin(it.t) > nowMin) : -1;
   const mark = i => !isToday ? '' : nextIdx === -1 ? (i < items.length - 1 ? ' past' : '') : i === nextIdx ? ' next' : i < nextIdx - 1 ? ' past' : '';
   const html = items.map((it, i) => (it.kind==='move' ? moveCard(it) : it.kind==='spot' ? spotCard(it)
@@ -1128,11 +1128,13 @@ function renderPack(){
 }
 
 /* ---------- 共用：日期、本機儲存 ---------- */
+/* 一律用日本時間（UTC+9）：回傳的 Date 用 getHours()/getDate() 讀出來就是日本當地時間，不受手機時區設定影響 */
+function jt(ts = Date.now()){ return new Date(ts + (new Date(ts).getTimezoneOffset() + 540) * 6e4); }
 const dkey = t => t.getFullYear() + '-' + pad(t.getMonth()+1) + '-' + pad(t.getDate());
-const todayKey = () => dkey(new Date());
+const todayKey = () => dkey(jt());
 const WEEK = '日一二三四五六';
 const dlabel = k => { const [y,m,d] = k.split('-').map(Number); return `${m}/${d}（${WEEK[new Date(y,m-1,d).getDay()]}）`; };
-const hm = ts => { const t = new Date(ts); return `${t.getMonth()+1}/${t.getDate()} ${pad(t.getHours())}:${pad(t.getMinutes())}`; };
+const hm = ts => { const t = jt(ts); return `${t.getMonth()+1}/${t.getDate()} ${pad(t.getHours())}:${pad(t.getMinutes())}`; };
 const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } };
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){ storeFail(); } };
 
@@ -1470,12 +1472,12 @@ function paintFormRate(){
 }
 /* 「今天」「昨天」按鈕：不用開日曆；選到的那顆會亮起來 */
 function paintQd(){
-  const v = $('#f-date').value, t = new Date();
+  const v = $('#f-date').value, t = jt();
   const days = [dkey(t), dkey(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1))];
   document.querySelectorAll('.qd').forEach(b => b.setAttribute('aria-pressed', v === days[+b.dataset.qd]));
 }
 document.querySelectorAll('.qd').forEach(b => b.addEventListener('click', () => {
-  const t = new Date(); $('#f-date').value = dkey(new Date(t.getFullYear(), t.getMonth(), t.getDate() - +b.dataset.qd));
+  const t = jt(); $('#f-date').value = dkey(new Date(t.getFullYear(), t.getMonth(), t.getDate() - +b.dataset.qd));
   paintFormRate(); paintQd();
 }));
 $('#f-date').addEventListener('change', () => { paintFormRate(); paintQd(); });
@@ -1634,7 +1636,7 @@ function renderAll(){ renderSub(); countdown(); renderDays(); renderPlan(); rend
 const pad = x => String(x).padStart(2, '0');
 function countdown(){
   const c = state.bro ? CD.bro : CD.fam, now = Date.now(), left = c.dep - now;
-  const t = new Date(), today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const t = jt(), today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
   let txt, lab, msg = '';
   if (left > 0) {
     const dd = Math.round((c.start - today) / 864e5), s = Math.floor(left / 1000);
